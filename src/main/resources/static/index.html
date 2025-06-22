@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>월간 점심 계획</title>
+    <script src="https://unpkg.com/vue@3"></script>
+    <style>
+        body { font-family: sans-serif; container-type: inline-size; }
+        #app { max-width: 600px; margin: 40px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        /* 월 선택 input의 너비를 조정합니다. */
+        input[type="month"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 150px; }
+        button { padding: 8px 15px; background-color: #42b983; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #36a374; }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin-bottom: 5px; border-radius: 4px; }
+        .loading { text-align: center; color: #777; }
+        h2 { margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <h1>📅 월간 점심 계획</h1>
+    <div class="controls">
+        <input type="month" v-model="selectedMonth">
+        <button @click="getLunchPlan">계획 생성</button>
+    </div>
+
+    <div v-if="loading" class="loading">
+        <p>계획을 생성 중입니다...</p>
+    </div>
+
+    <div v-if="schedule.length > 0">
+        <h2>{{ displayMonth }}월의 점심 계획</h2>
+        <ul>
+            <li v-for="item in schedule" :key="item.date">
+                <strong>{{ item.date }}</strong>: {{ item.restaurant }}
+            </li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue
+
+    createApp({
+        data() {
+            // YYYY-MM 형식으로 현재 월을 설정합니다.
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+
+            return {
+                selectedMonth: `${year}-${month}`,
+                schedule: [],
+                loading: false,
+                displayMonth: '' // 화면에 표시할 월
+            }
+        },
+        methods: {
+            getLunchPlan() {
+                if (!this.selectedMonth) {
+                    alert('유효한 월을 선택해주세요.');
+                    return;
+                }
+                this.loading = true;
+                this.schedule = [];
+
+                const [year, month] = this.selectedMonth.split('-');
+
+                // API 호출을 위해 displayMonth를 설정합니다.
+                this.displayMonth = parseInt(month, 10).toString();
+
+                fetch(`/api/lunch-plan?year=${year}&month=${month}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        this.schedule = data;
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('계획을 가져오는 데 실패했습니다.');
+                    })
+                    .finally(() => {
+                        this.loading = false;
+                    });
+            }
+        },
+        mounted() {
+            // 페이지 로딩 시 현재 월의 계획을 바로 가져옵니다.
+            this.getLunchPlan();
+        }
+    }).mount('#app')
+</script>
+
+</body>
+</html> 
