@@ -12,10 +12,86 @@
         input[type="month"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 150px; }
         button { padding: 8px 15px; background-color: #42b983; color: white; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background-color: #36a374; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
         ul { list-style-type: none; padding: 0; }
         li { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin-bottom: 5px; border-radius: 4px; }
         .loading { text-align: center; color: #777; }
         h2 { margin-top: 30px; }
+        
+        /* 모달 스타일 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        
+        .restaurant-list {
+            margin-bottom: 20px;
+        }
+        
+        .restaurant-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        
+        .restaurant-item input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        .restaurant-item button {
+            padding: 5px 10px;
+            background-color: #dc3545;
+        }
+        
+        .restaurant-item button:hover {
+            background-color: #c82333;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .add-restaurant {
+            margin-bottom: 20px;
+        }
+        
+        .add-restaurant input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 200px;
+        }
     </style>
 </head>
 <body>
@@ -25,6 +101,7 @@
     <div class="controls">
         <input type="month" v-model="selectedMonth">
         <button @click="getLunchPlan">계획 생성</button>
+        <button @click="openRestaurantManager" class="secondary">식당관리</button>
     </div>
 
     <div v-if="loading" class="loading">
@@ -38,6 +115,37 @@
                 <strong>{{ item.date }}</strong>: {{ item.restaurant }}
             </li>
         </ul>
+    </div>
+
+    <!-- 식당관리 모달 -->
+    <div v-if="showRestaurantModal" class="modal-overlay" @click="closeRestaurantManager">
+        <div class="modal" @click.stop>
+            <h3>🍽️ 식당 관리</h3>
+            
+            <div class="add-restaurant">
+                <input 
+                    v-model="newRestaurant" 
+                    @keyup.enter="addRestaurant"
+                    placeholder="새로운 식당 이름을 입력하세요"
+                >
+                <button @click="addRestaurant">추가</button>
+            </div>
+            
+            <div class="restaurant-list">
+                <div v-for="(restaurant, index) in restaurants" :key="index" class="restaurant-item">
+                    <input 
+                        v-model="restaurants[index]" 
+                        placeholder="식당 이름"
+                    >
+                    <button @click="removeRestaurant(index)">삭제</button>
+                </div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button @click="closeRestaurantManager">취소</button>
+                <button @click="saveRestaurants">저장</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -55,7 +163,10 @@
                 selectedMonth: `${year}-${month}`,
                 schedule: [],
                 loading: false,
-                displayMonth: '' // 화면에 표시할 월
+                displayMonth: '', // 화면에 표시할 월
+                showRestaurantModal: false,
+                restaurants: [],
+                newRestaurant: ''
             }
         },
         methods: {
@@ -89,6 +200,75 @@
                     .finally(() => {
                         this.loading = false;
                     });
+            },
+            
+            openRestaurantManager() {
+                this.loadRestaurants();
+                this.showRestaurantModal = true;
+            },
+            
+            closeRestaurantManager() {
+                this.showRestaurantModal = false;
+                this.restaurants = [];
+                this.newRestaurant = '';
+            },
+            
+            loadRestaurants() {
+                fetch('/api/restaurants')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        this.restaurants = [...data];
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('식당 목록을 가져오는 데 실패했습니다.');
+                    });
+            },
+            
+            addRestaurant() {
+                if (this.newRestaurant.trim()) {
+                    this.restaurants.push(this.newRestaurant.trim());
+                    this.newRestaurant = '';
+                }
+            },
+            
+            removeRestaurant(index) {
+                this.restaurants.splice(index, 1);
+            },
+            
+            saveRestaurants() {
+                const cleanRestaurants = this.restaurants
+                    .map(r => r.trim())
+                    .filter(r => r.length > 0);
+                
+                fetch('/api/restaurants', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(cleanRestaurants)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    alert('식당 목록이 성공적으로 저장되었습니다.');
+                    this.closeRestaurantManager();
+                    // 현재 계획을 다시 로드
+                    this.getLunchPlan();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('식당 목록 저장에 실패했습니다.');
+                });
             }
         },
         mounted() {

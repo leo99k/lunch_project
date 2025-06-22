@@ -3,10 +3,11 @@ package com.example.lunchpicker;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -34,6 +35,23 @@ public class LunchService {
         }
 
         return lunchPlans;
+    }
+
+    public List<String> getRestaurants() throws IOException {
+        return loadRestaurants();
+    }
+
+    public void updateRestaurants(List<String> restaurants) throws IOException {
+        ClassPathResource resource = new ClassPathResource("lunch.txt");
+        Path filePath = Paths.get(resource.getURI());
+        
+        // 빈 줄을 제거하고 저장
+        List<String> cleanRestaurants = restaurants.stream()
+                .map(String::trim)
+                .filter(restaurant -> !restaurant.isEmpty())
+                .collect(Collectors.toList());
+        
+        Files.write(filePath, cleanRestaurants, StandardCharsets.UTF_8);
     }
 
     private List<String> loadRestaurants() throws IOException {

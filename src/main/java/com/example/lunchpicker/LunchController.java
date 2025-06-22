@@ -2,10 +2,7 @@ package com.example.lunchpicker;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -31,6 +28,28 @@ public class LunchController {
         } catch (IOException e) {
             e.printStackTrace();
             return ResponseEntity.status(500).build();
+        }
+    }
+
+    @GetMapping("/restaurants")
+    public ResponseEntity<List<String>> getRestaurants() {
+        try {
+            List<String> restaurants = lunchService.getRestaurants();
+            return ResponseEntity.ok(restaurants);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @PostMapping("/restaurants")
+    public ResponseEntity<String> updateRestaurants(@RequestBody List<String> restaurants) {
+        try {
+            lunchService.updateRestaurants(restaurants);
+            return ResponseEntity.ok("식당 목록이 성공적으로 업데이트되었습니다.");
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("식당 목록 업데이트에 실패했습니다.");
         }
     }
 } 
