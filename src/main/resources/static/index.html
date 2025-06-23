@@ -92,6 +92,12 @@
             margin-right: 10px;
             width: 200px;
         }
+        
+        .today {
+            background: #ffe066;
+            font-weight: bold;
+            border-radius: 6px;
+        }
     </style>
 </head>
 <body>
@@ -110,9 +116,16 @@
 
     <div v-if="schedule.length > 0">
         <h2>{{ displayMonth }}월의 점심 계획</h2>
+        <div style="margin-bottom: 10px;">
+            <button v-if="!isFixed" @click="fixPlan" style="background:#007bff;">확정</button>
+            <button v-if="isFixed" @click="unfixPlan" style="background:#dc3545;">확정취소</button>
+            <span v-if="isFixed" style="margin-left:10px; color:#007bff; font-weight:bold;">[확정됨]</span>
+        </div>
         <ul>
-            <li v-for="item in schedule" :key="item.date">
-                <strong>{{ item.date }}</strong>: {{ item.restaurant }}
+            <li v-for="item in schedule" :key="item.date"
+                :class="{ today: isToday(item.date) }">
+                <strong>{{ item.date }} ({{ getDayOfWeek(item.date) }})</strong>: {{ item.restaurant }}
+                <span v-if="isToday(item.date)">⭐️</span>
             </li>
         </ul>
     </div>
@@ -166,7 +179,8 @@
                 displayMonth: '', // 화면에 표시할 월
                 showRestaurantModal: false,
                 restaurants: [],
-                newRestaurant: ''
+                newRestaurant: '',
+                isFixed: false
             }
         },
         methods: {
@@ -177,12 +191,12 @@
                 }
                 this.loading = true;
                 this.schedule = [];
-
                 const [year, month] = this.selectedMonth.split('-');
-
-                // API 호출을 위해 displayMonth를 설정합니다.
                 this.displayMonth = parseInt(month, 10).toString();
-
+                // 확정 여부 조회
+                fetch(`/api/lunch-plan/fixed?year=${year}&month=${month}`)
+                    .then(r => r.json())
+                    .then(data => { this.isFixed = data.fixed; });
                 fetch(`/api/lunch-plan?year=${year}&month=${month}`)
                     .then(response => {
                         if (!response.ok) {
@@ -200,6 +214,21 @@
                     .finally(() => {
                         this.loading = false;
                     });
+            },
+            
+            getDayOfWeek(dateStr) {
+                // dateStr: 'yyyy-MM-dd' 형식
+                const days = ['일', '월', '화', '수', '목', '금', '토'];
+                const date = new Date(dateStr);
+                return days[date.getDay()];
+            },
+            
+            isToday(dateStr) {
+                const today = new Date();
+                const date = new Date(dateStr);
+                return today.getFullYear() === date.getFullYear() &&
+                       today.getMonth() === date.getMonth() &&
+                       today.getDate() === date.getDate();
             },
             
             openRestaurantManager() {
@@ -269,6 +298,33 @@
                     console.error('Error:', error);
                     alert('식당 목록 저장에 실패했습니다.');
                 });
+            },
+            fixPlan() {
+                if (!confirm('현재 리스트를 확정하시겠습니까?')) return;
+                const [year, month] = this.selectedMonth.split('-');
+                fetch(`/api/lunch-plan/fix?year=${year}&month=${month}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.schedule)
+                })
+                .then(r => r.text())
+                .then(msg => {
+                    alert(msg);
+                    this.isFixed = true;
+                })
+                .catch(() => alert('확정에 실패했습니다.'));
+            },
+            unfixPlan() {
+                if (!confirm('확정된 계획을 취소하시겠습니까?')) return;
+                const [year, month] = this.selectedMonth.split('-');
+                fetch(`/api/lunch-plan/unfix?year=${year}&month=${month}`, { method: 'POST' })
+                .then(r => r.text())
+                .then(msg => {
+                    alert(msg);
+                    this.isFixed = false;
+                    this.getLunchPlan();
+                })
+                .catch(() => alert('확정취소에 실패했습니다.'));
             }
         },
         mounted() {

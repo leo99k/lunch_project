@@ -4,6 +4,8 @@ public class LunchPlan {
     private String date;
     private String restaurant;
 
+    public LunchPlan() {}
+
     public LunchPlan(String date, String restaurant) {
         this.date = date;
         this.restaurant = restaurant;

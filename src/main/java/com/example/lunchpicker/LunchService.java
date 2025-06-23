@@ -16,24 +16,31 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Service
 public class LunchService {
 
+    private static final String FIXED_PLAN_FILE_FORMAT = "lunch-fixed-%d-%02d.json";
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     public List<LunchPlan> getLunchPlanForMonth(int year, int month) throws IOException {
+        // 1. 확정된 계획이 있으면 반환
+        List<LunchPlan> fixed = loadFixedPlan(year, month);
+        if (fixed != null) return fixed;
+        // 2. 없으면 랜덤 생성
         List<String> restaurants = loadRestaurants();
         if (restaurants.isEmpty()) {
             return Collections.emptyList();
         }
-
         List<LocalDate> workingDays = getWorkingDays(year, month);
         Collections.shuffle(restaurants);
-
         List<LunchPlan> lunchPlans = new ArrayList<>();
         for (int i = 0; i < workingDays.size(); i++) {
             String restaurant = restaurants.get(i % restaurants.size());
             lunchPlans.add(new LunchPlan(workingDays.get(i).toString(), restaurant));
         }
-
         return lunchPlans;
     }
 
@@ -71,5 +78,28 @@ public class LunchService {
             }
         }
         return workingDays;
+    }
+
+    public void fixLunchPlan(int year, int month, List<LunchPlan> plan) throws IOException {
+        String filePath = String.format(FIXED_PLAN_FILE_FORMAT, year, month);
+        objectMapper.writerWithDefaultPrettyPrinter().writeValue(new File(filePath), plan);
+    }
+
+    public void unfixLunchPlan(int year, int month) {
+        String filePath = String.format(FIXED_PLAN_FILE_FORMAT, year, month);
+        File file = new File(filePath);
+        if (file.exists()) file.delete();
+    }
+
+    public boolean isFixed(int year, int month) {
+        String filePath = String.format(FIXED_PLAN_FILE_FORMAT, year, month);
+        return new File(filePath).exists();
+    }
+
+    private List<LunchPlan> loadFixedPlan(int year, int month) throws IOException {
+        String filePath = String.format(FIXED_PLAN_FILE_FORMAT, year, month);
+        File file = new File(filePath);
+        if (!file.exists()) return null;
+        return objectMapper.readValue(file, new TypeReference<List<LunchPlan>>(){});
     }
 } 
